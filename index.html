@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]>      <html class="no-js"> <!--<![endif]-->
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="css/style.css">
+    </head>
+    <body>
+        <h1>How did your representative vote?</h1>
+        <p>Did your representative vote to reject legally cast votes? In other words, does your representative accept democracy only when in favors him or her, and reject it when it does not?</p>
+        <p>This webapp uses data from the <a href="https://developers.google.com/civic-information">Google Civic Information API</a> and <a href="https://www.govtrack.us/congress/votes">GovTrack.us</a>.</p>
+        <p>Enter your address or a nearby address below.</p>
+        <input type="text" value="404 Jones Ferry Rd. Carrboro NC 27510" id="address" />
+        <input type="button" value="Submit" id="submit" onclick="executeSearch()" />
+        <div id="infoDiv">
+            <div id="largeVote"></div>
+            <div id="representativeVote"></div>
+            <div id="representativeName"></div>   
+            <div id="govTrackInfo"></div>
+        </div>
+
+        <iframe width="425" height="300" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"
+src="https://www.govtrack.us/congress/members/embed/mapframe?&bounds=-143.277,50.265,-52.957,18.392"></iframe>
+        
+        <script>
+            const parseAddress = () => {
+                let address = document.getElementById("address").value;
+                address.replaceAll(" ", "%20");
+                return address;
+            }
+  
+                //const url = `https://www.googleapis.com/civicinfo/v2/representatives/?address=${address}&roles=legislatorLowerBody&key=AIzaSyDyuibtJkxpfcoya0NPVwSTiJgg2Ac96AQ`;
+            const getRepInfo = async () => {
+                const address = parseAddress();
+                const urlToFetch = `https://www.googleapis.com/civicinfo/v2/representatives/?address=${address}&roles=legislatorLowerBody&key=AIzaSyDyuibtJkxpfcoya0NPVwSTiJgg2Ac96AQ`;
+                try {
+                    const response = await fetch(urlToFetch);
+                    if (response.ok) {
+                        const jsonResponse = await response.json();
+                        console.log("json response: ", jsonResponse);
+                        let repInfo = [];
+                        if (jsonResponse.offices == null) {
+                            console.log("Address did not return any representatives.")
+                            document.getElementById("infoDiv").textContent = "This address did not return a response from the database. Please enter a more specific address.";
+                            throw error;
+                        } else {
+                            repInfo.push(jsonResponse.offices[0].name);
+                            repInfo.push(jsonResponse.officials[0].name.split(' '));
+                            console.log(repInfo);
+                            return repInfo;
+                        }
+                    }
+                } catch (error) {
+                    console.log(error);
+                }
+            }
+
+                const checkVotingRecord = async (repInfo) => {
+                    console.log("begin check record: ", repInfo );
+                    const response = await fetch('congress_votes_117_2021_h11.csv');
+                    const data = await response.text();
+
+                    const rows = data.split('\n').slice(2);
+                    let nameAndVote = [];
+                    rows.forEach(element => {
+                        const row = element.split(',');
+                        const vote = row[3];
+                        const name = row[4].substr(5).split(' ');
+                        const idNum = row[0];
+                        console.log("Name and Vote: ", name, vote);
+                        if (name.includes(repInfo[1][0]) && name.includes(repInfo[1][1])) {
+                            nameAndVote.push(name);
+                            nameAndVote.push(vote);
+                            nameAndVote.push(idNum);
+                        }    
+
+                    });
+                    console.log(nameAndVote);
+                    return nameAndVote;
+                }
+
+                const renderResults = (results) => {
+                    let party = '';
+                    if (results[0][2] == '[D]') party = "Democrat";
+                    else if (results[0][2] == '[R]') party = "Republican";
+                    else party = "Third Party";
+
+                    let lrgVote = '';
+                    let vote = '';
+                    if (results[1] == 'Yea') {
+                        lrgVote = "YES"
+                        document.getElementById("largeVote").style.color = "red";
+                        vote = "Yes, your representative voted to throw out the results of a free and fair election because they did not serve his or her political interests."
+                    } else {
+                        lrgVote = "NO";
+                        document.getElementById("largeVote").style.color = "blue";
+                        vote = "No, your representative did not vote to throw out the results of a free and fair election."
+                    }
+
+
+                    let govTrackAddress = `https://www.govtrack.us/congress/members/${results[0][0]}_${results[0][1]}/${results[2]}`;
+                    document.getElementById("representativeName").textContent = `${results[0][0]} ${results[0][1]}, ${party}`
+                    document.getElementById("representativeVote").textContent = vote;
+                    document.getElementById("largeVote").textContent = lrgVote;
+                    document.getElementById("govTrackInfo").innerHTML = `View <a href="${govTrackAddress}" >${results[0][0]} ${results[0][1]}'s Profile</a> on GovTrack`;
+                }
+
+                const executeSearch = () => {
+                    getRepInfo()
+                    .then(repInfo => checkVotingRecord(repInfo))
+                    .then(nameAndVote => renderResults(nameAndVote));
+
+                }
+
+        </script>
+    </body>
+</html>

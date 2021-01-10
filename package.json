@@ -1,0 +1,14 @@
+{
+  "name": "csv_practice",
+  "version": "1.0.0",
+  "description": "Practicing using csv files",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Patrick Lang",
+  "license": "MIT",
+  "dependencies": {
+    "http-server": "^0.12.3"
+  }
+}
